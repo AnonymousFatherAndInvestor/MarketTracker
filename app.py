@@ -59,12 +59,6 @@ def get_prices(period: str) -> pd.DataFrame:
             close.loc[:last, col] = close.loc[:last, col].ffill()
     return close
 
-def compute_avg_daily_return(close: pd.DataFrame, window: int = 30) -> pd.Series:
-    """Calculate the average daily percent return for each ticker."""
-    returns = close.pct_change()
-    return returns.tail(window).mean() * 100
-
-
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines"))
@@ -76,53 +70,32 @@ def _mini_chart(series: pd.Series) -> str:
     )
     return fig.to_html(full_html=False, include_plotlyjs=False)
 
-def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
+def build_summary(close: pd.DataFrame):
     """Return normalized data per group and table rows."""
     data: dict[str, pd.DataFrame] = {}
     tables: dict[str, list] = {}
     for group, tickers in CATEGORIES.items():
         present = [t for t in tickers if t in close.columns]
-        if not present:
-            continue
-        subset = close[present]
-
-        # drop tickers that have no valid data in the selected period
-        subset = subset.dropna(how="all", axis=1)
-        if subset.empty:
-            continue
-
-        subset = subset.dropna(how="all")
-        if subset.empty:
-            continue
-
-        norm_df = pd.DataFrame(index=subset.index)
         rows = []
-
-        for ticker in subset.columns:
-            series = subset[ticker].dropna()
+        frames = []
+        for ticker in present:
+            series = close[ticker].dropna()
             if series.empty:
                 continue
-            norm = series / series.iloc[0] * 100
-            norm_df[ticker] = norm.reindex(subset.index)
-
-            first = series.iloc[0]
-            last = series.iloc[-1]
-            change = (last - first) / first * 100
-            avg_ret = avg_returns[ticker] if avg_returns is not None and ticker in avg_returns else None
+            series = series.ffill()
+            norm = (series / series.iloc[0]) * 100
+            frames.append(norm.rename(ticker))
+            change = (series.iloc[-1] - series.iloc[0]) / series.iloc[0] * 100
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
-                "last": round(float(last), 2),
+                "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
-                "avg": round(float(avg_ret), 4) if avg_ret is not None else None,
                 "spark": _mini_chart(norm),
             })
-
-        if not rows:
-            continue
-
-        data[group] = norm_df
-        tables[group] = rows
+        if rows:
+            data[group] = pd.concat(frames, axis=1)
+            tables[group] = rows
     return data, tables
 
 
@@ -143,9 +116,7 @@ def index():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    close_30d = get_prices("1mo")
-    avg_returns = compute_avg_daily_return(close_30d)
-    data, tables = build_summary(close, avg_returns)
+    data, tables = build_summary(close)
     charts = summary_charts(data)
     return render_template(
         "index.html",
@@ -161,9 +132,7 @@ def api_summary():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    close_30d = get_prices("1mo")
-    avg_returns = compute_avg_daily_return(close_30d)
-    data, _ = build_summary(close, avg_returns)
+    data, _ = build_summary(close)
     resp = {grp: df.round(2).to_dict() for grp, df in data.items()}
     return jsonify(resp)
 
