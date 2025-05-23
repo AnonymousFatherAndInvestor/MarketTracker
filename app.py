@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request
 import yfinance as yf
 from cachetools import TTLCache, cached
-from config import TICKERS, REFRESH_INTERVAL
 import plotly.express as px
+from config import TICKERS, REFRESH_INTERVAL
 
 app = Flask(__name__)
 
@@ -24,16 +24,15 @@ def index():
     close = data["Close"]
     last_close = close.iloc[-1]
     prev_close = close.iloc[-2]
-    pct_change = ((last_close - prev_close) / prev_close) * 100
-
-    fig = px.line(close, title="Price History")
-    chart_data = fig.to_html(full_html=False)
+    pct_change = (last_close - prev_close) / prev_close * 100
+    fig = px.line(close, labels={"index": "Date", "value": "Close", "variable": "Ticker"})
+    encoded = fig.to_html(full_html=False, include_plotlyjs="cdn")
     return render_template(
         "index.html",
         period=period,
         last_close=last_close.round(2).to_dict(),
         pct_change=pct_change.round(2).to_dict(),
-        chart_html=chart_data,
+        chart_data=encoded,
         periods=PERIODS,
     )
 
