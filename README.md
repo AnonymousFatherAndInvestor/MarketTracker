@@ -6,7 +6,6 @@ requires `matplotlib` for chart generation.
 ## Setup
 
 Install dependencies:
-
 ```bash
 pip install -r requirements.txt
 ```
