@@ -12,7 +12,15 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
     tickers_str = " ".join(TICKERS)
-    data = yf.download(tickers_str, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=True)
+    # use column grouping so first level denotes price fields (Open, Close, etc.)
+    data = yf.download(
+        tickers_str,
+        period=period,
+        interval="1d",
+        group_by="column",
+        auto_adjust=False,
+        threads=True,
+    )
     if isinstance(data.columns, pd.MultiIndex):
         close = data["Close"]
     else:
