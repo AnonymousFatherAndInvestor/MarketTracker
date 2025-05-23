@@ -48,8 +48,15 @@ def get_prices(period: str) -> pd.DataFrame:
 
     close.index = pd.to_datetime(close.index)
     close = close.sort_index()
+    # align to business days without extending beyond the last price for each
+    # ticker. Missing days inside the range are forward filled but trailing
+    # NaNs remain so later logic can drop or ignore them.
     idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
-    close = close.reindex(idx).ffill()
+    close = close.reindex(idx)
+    for col in close.columns:
+        last = close[col].last_valid_index()
+        if last is not None:
+            close.loc[:last, col] = close.loc[:last, col].ffill()
     return close
 
 def compute_avg_daily_return(close: pd.DataFrame, window: int = 30) -> pd.Series:
@@ -78,19 +85,28 @@ def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
         if not present:
             continue
         subset = close[present]
-        first_valid = subset.dropna(how="any").index.min()
-        if pd.isna(first_valid):
+
+        # drop tickers that have no valid data in the selected period
+        subset = subset.dropna(how="all", axis=1)
+        if subset.empty:
             continue
-        subset = subset.loc[first_valid:].ffill()
 
-        norm_df = subset.div(subset.iloc[0]).mul(100)
-        data[group] = norm_df
+        subset = subset.dropna(how="all")
+        if subset.empty:
+            continue
 
+        norm_df = pd.DataFrame(index=subset.index)
         rows = []
-        for ticker in present:
-            s = subset[ticker]
-            first = s.iloc[0]
-            last = s.iloc[-1]
+
+        for ticker in subset.columns:
+            series = subset[ticker].dropna()
+            if series.empty:
+                continue
+            norm = series / series.iloc[0] * 100
+            norm_df[ticker] = norm.reindex(subset.index)
+
+            first = series.iloc[0]
+            last = series.iloc[-1]
             change = (last - first) / first * 100
             avg_ret = avg_returns[ticker] if avg_returns is not None and ticker in avg_returns else None
             rows.append({
@@ -99,8 +115,13 @@ def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
                 "last": round(float(last), 2),
                 "change": round(float(change), 2),
                 "avg": round(float(avg_ret), 4) if avg_ret is not None else None,
-                "spark": _mini_chart(norm_df[ticker]),
+                "spark": _mini_chart(norm),
             })
+
+        if not rows:
+            continue
+
+        data[group] = norm_df
         tables[group] = rows
     return data, tables
 
