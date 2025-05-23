@@ -9,7 +9,7 @@
 <body class="p-4">
   <div class="container">
     <h1 class="mb-4">Market Tracker</h1>
-    <form method="get" class="mb-3">
+    <form method="get" class="mb-4">
       <label for="period" class="form-label">Period:</label>
       <select id="period" name="period" onchange="this.form.submit()" class="form-select w-auto d-inline-block ms-2">
         {% for p in periods %}
@@ -17,20 +17,28 @@
         {% endfor %}
       </select>
     </form>
+    {% for cat in categories %}
+    <h2 class="mt-5">{{ cat.name }}</h2>
     <div class="row">
-      {% for card in cards %}
-      <div class="col-md-6 mb-4">
-        <div class="card h-100">
+      {% for t in cat.tickers %}
+      <div class="col-md-6 mb-3">
+        <div class="card">
           <div class="card-body">
-            <h5 class="card-title">{{ card.name }} ({{ card.ticker }})</h5>
-            <p class="card-text mb-2">Close: {{ card.close }}</p>
-            <p class="card-text mb-3">Change: {{ card.change }}%</p>
-            <img src="data:image/png;base64,{{ card.chart }}" class="img-fluid"/>
+            <h5 class="card-title">{{ t.name }} ({{ t.ticker }})</h5>
+            <p class="card-text">Close: {{ "%.2f"|format(t.close) }}</p>
+            <p class="card-text">Change: {{ "%.2f"|format(t.change) }}%</p>
+            <img src="data:image/png;base64,{{ t.chart }}" class="img-fluid"/>
           </div>
         </div>
       </div>
       {% endfor %}
     </div>
+    {% if cat.relative_chart %}
+    <div class="mb-5">
+      <img src="data:image/png;base64,{{ cat.relative_chart }}" class="img-fluid"/>
+    </div>
+    {% endif %}
+    {% endfor %}
   </div>
 </body>
 </html>
