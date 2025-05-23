@@ -1,0 +1,44 @@
+from flask import Flask, render_template, request
+import yfinance as yf
+from cachetools import TTLCache, cached
+from config import TICKERS, REFRESH_INTERVAL
+
+app = Flask(__name__)
+
+PERIODS = ["1d", "5d", "1mo", "6mo", "1y", "ytd", "5y", "max"]
+
+cache = TTLCache(maxsize=32, ttl=REFRESH_INTERVAL)
+
+@cached(cache, key=lambda period: period)
+def get_prices(period: str):
+    data = yf.download(TICKERS, period=period, interval="1d")
+    return data
+
+@app.route("/")
+def index():
+    period = request.args.get("period", "1mo")
+    if period not in PERIODS:
+        period = "1mo"
+    data = get_prices(period)
+    close = data["Close"]
+    last_close = close.iloc[-1].astype(float)
+    prev_close = close.iloc[-2].astype(float)
+    pct_change = (last_close - prev_close) / prev_close * 100
+    chart = close.plot().get_figure()
+    import io, base64
+    buf = io.BytesIO()
+    chart.savefig(buf, format="png")
+    buf.seek(0)
+    encoded = base64.b64encode(buf.read()).decode("utf-8")
+    buf.close()
+    return render_template(
+        "index.html",
+        period=period,
+        last_close={k: f"{v:.2f}" for k, v in last_close.round(2).items()},
+        pct_change={k: f"{v:.2f}" for k, v in pct_change.round(2).items()},
+        chart_data=encoded,
+        periods=PERIODS,
+    )
+
+if __name__ == "__main__":
+    app.run(debug=True)

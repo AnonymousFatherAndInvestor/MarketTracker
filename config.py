@@ -1,0 +1,2 @@
+TICKERS = ["^GSPC", "^IXIC"]
+REFRESH_INTERVAL = 900  # seconds
