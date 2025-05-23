@@ -70,5 +70,6 @@ def api_summary():
     resp = {k: v.round(2).to_dict() for k,v in summary.items()}
     return jsonify(resp)
 
+
 if __name__ == "__main__":
     app.run(debug=True)
