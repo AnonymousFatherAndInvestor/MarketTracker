@@ -4,13 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
   <title>Market Tracker</title>
 </head>
 <body class="p-4">
   <div class="container">
     <h1 class="mb-4">Market Tracker</h1>
-    <form method="get" class="mb-4">
+    <form method="get" class="mb-3">
       <label for="period" class="form-label">Period:</label>
       <select id="period" name="period" onchange="this.form.submit()" class="form-select w-auto d-inline-block ms-2">
         {% for p in periods %}
@@ -18,32 +17,22 @@
         {% endfor %}
       </select>
     </form>
-
-    <h2 class="mb-3">Executive Summary</h2>
-    {% for cat, chart in summary_charts.items() %}
-      {% if chart %}
-        <h5 class="mt-4">{{ cat }}</h5>
-        {{ chart|safe }}
-      {% endif %}
-    {% endfor %}
-
-    {% for cat, cards in ticker_cards.items() %}
-      <h2 class="mt-5">{{ cat }}</h2>
-      <div class="row">
-        {% for c in cards %}
-        <div class="col-md-4 mb-4">
-          <div class="card h-100">
-            <div class="card-body">
-              <h6 class="card-title">{{ c.name }} ({{ c.ticker }})</h6>
-              <p class="card-text">Close: {{ c.close }}</p>
-              <p class="card-text">Change: {{ c.change }}%</p>
-              {{ c.chart|safe }}
-            </div>
+    <div class="row mb-4">
+      {% for ticker, value in last_close.items() %}
+      <div class="col-md-6 mb-3">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">{{ ticker }}</h5>
+            <p class="card-text">Close: {{ value }}</p>
+            <p class="card-text">Daily %: {{ pct_change[ticker] }}</p>
           </div>
         </div>
-        {% endfor %}
       </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
+    <div class="text-center">
+      <img src="data:image/png;base64,{{ chart_data }}" class="img-fluid"/>
+    </div>
   </div>
 </body>
 </html>
