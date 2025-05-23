@@ -60,7 +60,6 @@ def get_prices(period: str) -> pd.DataFrame:
     return close
 
 
-
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines"))
@@ -83,24 +82,31 @@ def build_summary(close: pd.DataFrame):
 
         series_dict: dict[str, pd.Series] = {}
         rows = []
-        norm_series = []
+        norm_parts = {}
         for ticker in present:
-            s = subset[ticker]
-            first = s.iloc[0]
-            last = s.iloc[-1]
+            series = close[ticker].dropna()
+            if series.empty:
+                continue
+            series = series.ffill()
+            norm_parts[ticker] = series / series.iloc[0] * 100
+
+            first = series.iloc[0]
+            last = series.iloc[-1]
             change = (last - first) / first * 100
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
                 "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
-                "spark": _mini_chart(norm_df[ticker]),
+                "spark": _mini_chart(norm_parts[ticker]),
             })
 
-        if series_dict:
-            data[group] = pd.concat(series_dict, axis=1)
-            tables[group] = rows
+        if not norm_parts:
+            continue
 
+        norm_df = pd.DataFrame(norm_parts).reindex(close.index).ffill()
+        data[group] = norm_df
+        tables[group] = rows
     return data, tables
 
 
