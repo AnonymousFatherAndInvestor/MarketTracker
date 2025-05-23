@@ -32,29 +32,34 @@ def get_prices(period: str) -> pd.DataFrame:
     close_dict: dict[str, pd.Series] = {}
 
     if isinstance(data.columns, pd.MultiIndex):
-        for ticker in data.columns.levels[0]:
-            df = data[ticker]
-            col = "Close" if "Close" in df.columns else "Adj Close" if "Adj Close" in df.columns else None
-            if col is None:
-                continue
-            series = df[col].dropna()
-            if series.empty:
-                continue
-            series.index = pd.to_datetime(series.index)
-            idx = pd.date_range(series.index.min(), series.index.max(), freq="B")
-            close_dict[ticker] = series.reindex(idx).ffill()
+        # extract Close or Adj Close for each ticker individually
+        frames: list[pd.Series] = []
+        for ticker in TICKERS:
+            if (ticker, "Close") in data.columns:
+                frames.append(data[ticker]["Close"].rename(ticker))
+            elif (ticker, "Adj Close") in data.columns:
+                frames.append(data[ticker]["Adj Close"].rename(ticker))
+        if frames:
+            close = pd.concat(frames, axis=1)
+        else:
+            close = pd.DataFrame()
     else:
-        col = "Close" if "Close" in data.columns else "Adj Close" if "Adj Close" in data.columns else None
-        if col:
-            series = data[col].dropna()
-            if not series.empty:
-                series.index = pd.to_datetime(series.index)
-                idx = pd.date_range(series.index.min(), series.index.max(), freq="B")
-                close_dict[TICKERS[0]] = series.reindex(idx).ffill()
+        # yf returns a single-index dataframe when only one ticker succeeds
+        if "Close" in data.columns:
+            close = data[["Close"]]
+        elif "Adj Close" in data.columns:
+            close = data[["Adj Close"]].rename(columns={"Adj Close": "Close"})
+        else:
+            raise KeyError("Close")
+        close.columns = pd.Index(TICKERS[:1])
 
-    close = pd.DataFrame(close_dict)
-    close.sort_index(inplace=True)
+    close.index = pd.to_datetime(close.index)
+    close = close.sort_index()
+    idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
+    close = close.reindex(idx).ffill()
     return close
+
+
 
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
@@ -80,18 +85,16 @@ def build_summary(close: pd.DataFrame):
         rows = []
         norm_series = []
         for ticker in present:
-            series = close[ticker].dropna()
-            if series.empty:
-                continue
-            norm = series.div(series.iloc[0]).mul(100)
-            series_dict[ticker] = norm
-            change = (series.iloc[-1] - series.iloc[0]) / series.iloc[0] * 100
+            s = subset[ticker]
+            first = s.iloc[0]
+            last = s.iloc[-1]
+            change = (last - first) / first * 100
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
                 "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
-                "spark": _mini_chart(norm),
+                "spark": _mini_chart(norm_df[ticker]),
             })
 
         if series_dict:
