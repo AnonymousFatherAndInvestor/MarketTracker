@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request
+import io
+import base64
 import pandas as pd
 import yfinance as yf
 from cachetools import TTLCache, cached
@@ -12,18 +14,15 @@ cache = TTLCache(maxsize=32, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
-    """Download prices for all tickers, skipping ones that return no data."""
-    frames = {}
+    frames = []
     for ticker in TICKERS:
-        try:
-            df = yf.download(ticker, period=period, interval="1d", progress=False)
-        except Exception:
-            continue
+        df = yf.download(ticker, period=period, interval="1d")
         if not df.empty:
-            frames[ticker] = df["Close"]
-    if not frames:
-        return pd.DataFrame()
-    return pd.concat(frames, axis=1)
+            df = df[["Close"]].rename(columns={"Close": ticker})
+            frames.append(df)
+    if frames:
+        return pd.concat(frames, axis=1, join="outer")
+    return pd.DataFrame()
 
 @app.route("/")
 def index():
@@ -31,28 +30,29 @@ def index():
     if period not in PERIODS:
         period = "1mo"
     data = get_prices(period)
-    if data.empty:
-        last_close = {}
-        pct_change = {}
-        chart_img = ""
-    else:
-        close = data.dropna()
-        last_close = close.iloc[-1].round(2).to_dict()
-        prev_close = close.iloc[-2]
-        pct_change = ((close.iloc[-1] - prev_close) / prev_close * 100).round(2).to_dict()
-        chart = close.plot().get_figure()
-        import io, base64
+    close = data.dropna()
+
+    last_close = {}
+    pct_change = {}
+    chart_data = ""
+    if len(close) >= 2:
+        last = close.iloc[-1]
+        prev = close.iloc[-2]
+        last_close = last.round(2).to_dict()
+        pct_change = ((last - prev) / prev * 100).round(2).to_dict()
+        fig = close.plot().get_figure()
         buf = io.BytesIO()
-        chart.savefig(buf, format="png")
+        fig.savefig(buf, format="png")
         buf.seek(0)
-        chart_img = base64.b64encode(buf.read()).decode("utf-8")
+        chart_data = base64.b64encode(buf.read()).decode("utf-8")
         buf.close()
+
     return render_template(
         "index.html",
         period=period,
         last_close=last_close,
         pct_change=pct_change,
-        chart_data=chart_img,
+        chart_data=chart_data,
         periods=PERIODS,
     )
 

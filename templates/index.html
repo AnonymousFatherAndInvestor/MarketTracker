@@ -17,6 +17,7 @@
         {% endfor %}
       </select>
     </form>
+    {% if last_close %}
     <div class="row mb-4">
       {% for ticker, value in last_close.items() %}
       <div class="col-md-6 mb-3">
@@ -30,9 +31,10 @@
       </div>
       {% endfor %}
     </div>
-    {% if chart_data %}
     <div class="text-center">
+      {% if chart_data %}
       <img src="data:image/png;base64,{{ chart_data }}" class="img-fluid"/>
+      {% endif %}
     </div>
     {% else %}
     <p>No data available.</p>
