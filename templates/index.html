@@ -17,26 +17,20 @@
         {% endfor %}
       </select>
     </form>
-    {% if last_close %}
-    <div class="row mb-4">
-      {% for ticker, value in last_close.items() %}
-      <div class="col-md-6 mb-3">
-        <div class="card">
+    <div class="row">
+      {% for card in cards %}
+      <div class="col-md-6 mb-4">
+        <div class="card h-100">
           <div class="card-body">
-            <h5 class="card-title">{{ ticker }}</h5>
-            <p class="card-text">Close: {{ value }}</p>
-            <p class="card-text">Daily %: {{ pct_change[ticker] }}</p>
+            <h5 class="card-title">{{ card.name }} ({{ card.ticker }})</h5>
+            <p class="card-text mb-2">Close: {{ card.close }}</p>
+            <p class="card-text mb-3">Change: {{ card.change }}%</p>
+            <img src="data:image/png;base64,{{ card.chart }}" class="img-fluid"/>
           </div>
         </div>
       </div>
       {% endfor %}
     </div>
-    <div class="text-center">
-      <img src="data:image/png;base64,{{ chart_data }}" class="img-fluid"/>
-    </div>
-    {% else %}
-    <p>No data available.</p>
-    {% endif %}
   </div>
 </body>
 </html>

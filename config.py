@@ -1,15 +1,41 @@
-TICKERS = [
-    "^GSPC", "^IXIC", "^RUT",  # US indices
-    "^FTSE", "^STOXX50E",  # Europe
-    "^N225", "^TOPX", "9816.T", "1343.T",  # Japan
-    "^HSI", "000001.SS", "^STI",  # Asia
-    # Rates
-    "^IRX", "^TNX", "^JGB10Y", "^SG10Y=RR", "^DE10Y=X",
-    # FX (JPY crosses)
-    "JPY=X", "EURJPY=X", "GBPJPY=X", "SGDJPY=X", "CHFJPY=X",
-    # Sector ETFs
-    "IXN", "IXG", "IXJ", "IXC", "MXI", "EXI", "RXI", "KXI", "IXP", "JXI", "RWO",
-    # Factor ETFs
-    "IWVL.L", "IWFG.L", "IWFM.L", "IWQU.L", "ACWV",
-]
+TICKERS = {
+    "^GSPC": "S&P 500",
+    "^IXIC": "NASDAQ Composite",
+    "^RUT": "Russell 2000",
+    "^FTSE": "FTSE 100",
+    "^STOXX50E": "Euro Stoxx 50",
+    "^N225": "Nikkei 225",
+    "^TOPX": "TOPIX",
+    "9816.T": "TSE Growth Core ETF",
+    "1343.T": "TSE REIT ETF",
+    "^HSI": "Hang Seng",
+    "000001.SS": "Shanghai Composite",
+    "^STI": "Straits Times",
+    "^IRX": "US 3M T-Bill",
+    "^TNX": "US 10Y Treasury",
+    "^JGB10Y": "Japan 10Y Gov Bond",
+    "^SG10Y=RR": "Singapore 10Y Gov Bond",
+    "^DE10Y=X": "Germany 10Y Bund",
+    "JPY=X": "USD/JPY",
+    "EURJPY=X": "EUR/JPY",
+    "GBPJPY=X": "GBP/JPY",
+    "SGDJPY=X": "SGD/JPY",
+    "CHFJPY=X": "CHF/JPY",
+    "IXN": "Global Tech ETF",
+    "IXG": "Global Financials ETF",
+    "IXJ": "Global Health Care ETF",
+    "IXC": "Global Energy ETF",
+    "MXI": "Global Materials ETF",
+    "EXI": "Global Industrials ETF",
+    "RXI": "Global Cons Discretionary ETF",
+    "KXI": "Global Cons Staples ETF",
+    "IXP": "Global Communication Services ETF",
+    "JXI": "Global Utilities ETF",
+    "RWO": "Global Real Estate ETF",
+    "IWVL.L": "World Value Factor ETF",
+    "IWFG.L": "World Growth Factor ETF",
+    "IWFM.L": "World Momentum Factor ETF",
+    "IWQU.L": "World Quality Factor ETF",
+    "ACWV": "World Min Volatility ETF",
+}
 REFRESH_INTERVAL = 900  # seconds
