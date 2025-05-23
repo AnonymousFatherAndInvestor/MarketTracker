@@ -18,7 +18,7 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
-    """Download closing prices and forward fill on business days."""
+    """Download closing prices for all tickers and reindex each series to business days."""
     tickers_str = " ".join(TICKERS)
     data = yf.download(
         tickers_str,
@@ -29,34 +29,32 @@ def get_prices(period: str) -> pd.DataFrame:
         threads=True,
     )
 
+    close_dict: dict[str, pd.Series] = {}
+
     if isinstance(data.columns, pd.MultiIndex):
-        cols = data.columns.get_level_values(1)
-        if "Close" in cols:
-            close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
-        elif "Adj Close" in cols:
-            close = data.swaplevel(axis=1).xs("Adj Close", level=0, axis=1)
-        else:
-            raise KeyError("Close")
+        for ticker in data.columns.levels[0]:
+            df = data[ticker]
+            col = "Close" if "Close" in df.columns else "Adj Close" if "Adj Close" in df.columns else None
+            if col is None:
+                continue
+            series = df[col].dropna()
+            if series.empty:
+                continue
+            series.index = pd.to_datetime(series.index)
+            idx = pd.date_range(series.index.min(), series.index.max(), freq="B")
+            close_dict[ticker] = series.reindex(idx).ffill()
     else:
-        if "Close" in data.columns:
-            close = data[["Close"]]
-        elif "Adj Close" in data.columns:
-            close = data[["Adj Close"]].rename(columns={"Adj Close": "Close"})
-        else:
-            raise KeyError("Close")
-        close.columns = pd.Index(TICKERS)
+        col = "Close" if "Close" in data.columns else "Adj Close" if "Adj Close" in data.columns else None
+        if col:
+            series = data[col].dropna()
+            if not series.empty:
+                series.index = pd.to_datetime(series.index)
+                idx = pd.date_range(series.index.min(), series.index.max(), freq="B")
+                close_dict[TICKERS[0]] = series.reindex(idx).ffill()
 
-    close.index = pd.to_datetime(close.index)
-    close = close.sort_index()
-    idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
-    close = close.reindex(idx).ffill()
+    close = pd.DataFrame(close_dict)
+    close.sort_index(inplace=True)
     return close
-
-def compute_avg_daily_return(close: pd.DataFrame, window: int = 30) -> pd.Series:
-    """Calculate the average daily percent return for each ticker."""
-    returns = close.pct_change()
-    return returns.tail(window).mean() * 100
-
 
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
@@ -69,7 +67,7 @@ def _mini_chart(series: pd.Series) -> str:
     )
     return fig.to_html(full_html=False, include_plotlyjs=False)
 
-def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
+def build_summary(close: pd.DataFrame):
     """Return normalized data per group and table rows."""
     data: dict[str, pd.DataFrame] = {}
     tables: dict[str, list] = {}
@@ -78,30 +76,30 @@ def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
         if not present:
             continue
         subset = close[present]
-        first_valid = subset.dropna(how="any").index.min()
-        if pd.isna(first_valid):
-            continue
-        subset = subset.loc[first_valid:].ffill()
-
-        norm_df = subset.div(subset.iloc[0]).mul(100)
-        data[group] = norm_df
 
         rows = []
+        norm_series = []
         for ticker in present:
-            s = subset[ticker]
+            s = subset[ticker].dropna()
+            if s.empty:
+                continue
             first = s.iloc[0]
             last = s.iloc[-1]
             change = (last - first) / first * 100
-            avg_ret = avg_returns[ticker] if avg_returns is not None and ticker in avg_returns else None
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
                 "last": round(float(last), 2),
                 "change": round(float(change), 2),
-                "avg": round(float(avg_ret), 4) if avg_ret is not None else None,
-                "spark": _mini_chart(norm_df[ticker]),
+                "spark": _mini_chart((s / first) * 100),
             })
-        tables[group] = rows
+            norm_series.append((s / first) * 100)
+
+        if rows:
+            norm_df = pd.concat(norm_series, axis=1, join="outer")
+            norm_df.columns = [r["ticker"] for r in rows]
+            data[group] = norm_df
+            tables[group] = rows
     return data, tables
 
 
@@ -122,9 +120,7 @@ def index():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    close_30d = get_prices("1mo")
-    avg_returns = compute_avg_daily_return(close_30d)
-    data, tables = build_summary(close, avg_returns)
+    data, tables = build_summary(close)
     charts = summary_charts(data)
     return render_template(
         "index.html",
@@ -140,9 +136,7 @@ def api_summary():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    close_30d = get_prices("1mo")
-    avg_returns = compute_avg_daily_return(close_30d)
-    data, _ = build_summary(close, avg_returns)
+    data, _ = build_summary(close)
     resp = {grp: df.round(2).to_dict() for grp, df in data.items()}
     return jsonify(resp)
 
