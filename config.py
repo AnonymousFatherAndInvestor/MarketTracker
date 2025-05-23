@@ -48,4 +48,5 @@ TICKERS = [
     "IWQU.L",
     "ACWV",
 ]
+
 REFRESH_INTERVAL = 900  # seconds
