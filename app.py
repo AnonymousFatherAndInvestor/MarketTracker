@@ -11,15 +11,40 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
+    """Download close prices for all tickers and forward-fill missing days."""
     tickers_str = " ".join(TICKERS)
-    data = yf.download(tickers_str, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=True)
+    data = yf.download(
+        tickers_str,
+        period=period,
+        interval="1d",
+        group_by="ticker",
+        auto_adjust=False,
+        threads=True,
+    )
     if isinstance(data.columns, pd.MultiIndex):
-        close = data["Close"]
+        cols = data.columns.get_level_values(0)
+        label = "Close" if "Close" in cols else "Adj Close"
+        close = data[label]
     else:
-        # single ticker case
         close = data[["Close"]]
         close.columns = pd.MultiIndex.from_product([["Close"], TICKERS])
+    close.index = pd.to_datetime(close.index)
+    close = close.asfreq("B")
     return close.ffill()
+
+def sparkline(series: pd.Series) -> str:
+    """Return a small inline Plotly chart as HTML."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=series.index, y=series.values, mode="lines", line=dict(width=1))
+    )
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=40,
+        xaxis_visible=False,
+        yaxis_visible=False,
+    )
+    return fig.to_html(full_html=False, include_plotlyjs=False)
 
 def build_summary(close: pd.DataFrame):
     summary = {}
@@ -36,19 +61,26 @@ def build_summary(close: pd.DataFrame):
             first = s.iloc[0]
             last = s.iloc[-1]
             change = (last - first) / first * 100
-            rows.append({"ticker": ticker, "name": name, "last": round(float(last),2), "change": round(float(change),2)})
-            series_list.append((s / first) * 100)
+            norm = (s / first) * 100
+            rows.append({
+                "ticker": ticker,
+                "name": name,
+                "last": round(float(last), 2),
+                "change": round(float(change), 2),
+                "spark": sparkline(norm),
+            })
+            series_list.append(norm.rename(name))
         if series_list:
-            summary[group] = pd.concat(series_list, axis=1).mean(axis=1)
+            summary[group] = pd.concat(series_list, axis=1)
             tables[group] = rows
     return summary, tables
 
-def summary_chart(summary: dict) -> str:
+def group_chart(df: pd.DataFrame) -> str:
     fig = go.Figure()
-    for name, series in summary.items():
-        fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines", name=name))
-    fig.update_layout(height=400, margin=dict(l=40,r=40,t=40,b=40))
-    return fig.to_html(full_html=False, include_plotlyjs='cdn')
+    for col in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df[col], mode="lines", name=col))
+    fig.update_layout(height=300, margin=dict(l=40, r=40, t=30, b=40), legend=dict(orientation="h"))
+    return fig.to_html(full_html=False, include_plotlyjs=False)
 
 @app.route("/")
 def index():
@@ -57,8 +89,8 @@ def index():
         period = DEFAULT_PERIOD
     close = get_prices(period)
     summary, tables = build_summary(close)
-    chart_html = summary_chart(summary)
-    return render_template("index.html", periods=PERIODS, period=period, chart=chart_html, tables=tables)
+    charts = {g: group_chart(df) for g, df in summary.items()}
+    return render_template("index.html", periods=PERIODS, period=period, charts=charts, tables=tables)
 
 @app.route("/api/summary")
 def api_summary():
@@ -67,7 +99,7 @@ def api_summary():
         period = DEFAULT_PERIOD
     close = get_prices(period)
     summary, _ = build_summary(close)
-    resp = {k: v.round(2).to_dict() for k,v in summary.items()}
+    resp = {g: df.round(2).to_dict() for g, df in summary.items()}
     return jsonify(resp)
 
 
