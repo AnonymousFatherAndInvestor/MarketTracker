@@ -30,32 +30,32 @@ def get_prices(period: str) -> pd.DataFrame:
     )
 
     if isinstance(data.columns, pd.MultiIndex):
-        cols = data.columns.get_level_values(1)
-        if "Close" in cols:
-            close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
-        elif "Adj Close" in cols:
-            close = data.swaplevel(axis=1).xs("Adj Close", level=0, axis=1)
+        # extract Close or Adj Close for each ticker individually
+        frames: list[pd.Series] = []
+        for ticker in TICKERS:
+            if (ticker, "Close") in data.columns:
+                frames.append(data[ticker]["Close"].rename(ticker))
+            elif (ticker, "Adj Close") in data.columns:
+                frames.append(data[ticker]["Adj Close"].rename(ticker))
+        if frames:
+            close = pd.concat(frames, axis=1)
         else:
-            raise KeyError("Close")
+            close = pd.DataFrame()
     else:
+        # yf returns a single-index dataframe when only one ticker succeeds
         if "Close" in data.columns:
             close = data[["Close"]]
         elif "Adj Close" in data.columns:
             close = data[["Adj Close"]].rename(columns={"Adj Close": "Close"})
         else:
             raise KeyError("Close")
-        close.columns = pd.Index(TICKERS)
+        close.columns = pd.Index(TICKERS[:1])
 
     close.index = pd.to_datetime(close.index)
     close = close.sort_index()
     idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
     close = close.reindex(idx).ffill()
     return close
-
-def compute_avg_daily_return(close: pd.DataFrame, window: int = 30) -> pd.Series:
-    """Calculate the average daily percent return for each ticker."""
-    returns = close.pct_change()
-    return returns.tail(window).mean() * 100
 
 
 def _mini_chart(series: pd.Series) -> str:
@@ -69,7 +69,7 @@ def _mini_chart(series: pd.Series) -> str:
     )
     return fig.to_html(full_html=False, include_plotlyjs=False)
 
-def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
+def build_summary(close: pd.DataFrame):
     """Return normalized data per group and table rows."""
     data: dict[str, pd.DataFrame] = {}
     tables: dict[str, list] = {}
@@ -92,13 +92,11 @@ def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
             first = s.iloc[0]
             last = s.iloc[-1]
             change = (last - first) / first * 100
-            avg_ret = avg_returns[ticker] if avg_returns is not None and ticker in avg_returns else None
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
                 "last": round(float(last), 2),
                 "change": round(float(change), 2),
-                "avg": round(float(avg_ret), 4) if avg_ret is not None else None,
                 "spark": _mini_chart(norm_df[ticker]),
             })
         tables[group] = rows
@@ -122,9 +120,7 @@ def index():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    close_30d = get_prices("1mo")
-    avg_returns = compute_avg_daily_return(close_30d)
-    data, tables = build_summary(close, avg_returns)
+    data, tables = build_summary(close)
     charts = summary_charts(data)
     return render_template(
         "index.html",
@@ -140,9 +136,7 @@ def api_summary():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    close_30d = get_prices("1mo")
-    avg_returns = compute_avg_daily_return(close_30d)
-    data, _ = build_summary(close, avg_returns)
+    data, _ = build_summary(close)
     resp = {grp: df.round(2).to_dict() for grp, df in data.items()}
     return jsonify(resp)
 
