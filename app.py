@@ -22,7 +22,8 @@ def get_prices(period: str) -> pd.DataFrame:
         threads=True,
     )
     if isinstance(data.columns, pd.MultiIndex):
-        close = data["Close"]
+        # columns are (ticker, field) -> swap to (field, ticker) and pick Close
+        close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
     else:
         # single ticker case
         close = data[["Close"]]
