@@ -31,6 +31,7 @@
         <th>Name</th>
         <th class="text-end">Last Close</th>
         <th class="text-end">% Change</th>
+        <th>Spark</th>
         <th class="text-end">Avg Daily Return (30d)</th>
       </tr>
     </thead>
@@ -41,6 +42,7 @@
         <td>{{ row.name }}</td>
         <td class="text-end">{{ row.last }}</td>
         <td class="text-end">{{ row.change }}%</td>
+        <td>{{ row.spark|safe }}</td>
         <td class="text-end">{% if row.avg is not none %}{{ row.avg }}%{% endif %}</td>
       </tr>
       {% endfor %}
