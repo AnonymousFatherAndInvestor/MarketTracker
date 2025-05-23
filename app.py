@@ -31,6 +31,7 @@ def get_prices(period: str) -> pd.DataFrame:
         if col is None:
             raise KeyError("Close")
         close = data[col]
+
     else:
         col = "Close" if "Close" in data.columns else "Adj Close"
         close = data[[col]]
