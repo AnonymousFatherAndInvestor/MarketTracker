@@ -12,23 +12,35 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
     tickers_str = " ".join(TICKERS)
-    # use column grouping so first level denotes price fields (Open, Close, etc.)
     data = yf.download(
         tickers_str,
         period=period,
         interval="1d",
-        group_by="column",
+        group_by="ticker",
         auto_adjust=False,
         threads=True,
     )
+
     if isinstance(data.columns, pd.MultiIndex):
-        # columns are (ticker, field) -> swap to (field, ticker) and pick Close
-        close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
+        data = data.swaplevel(axis=1)
+        col = None
+        for name in ["Close", "Adj Close"]:
+            if name in data.columns.get_level_values(0):
+                col = name
+                break
+        if col is None:
+            raise KeyError("Close")
+        close = data[col]
+
     else:
-        # single ticker case
-        close = data[["Close"]]
-        close.columns = pd.MultiIndex.from_product([["Close"], TICKERS])
-    return close.ffill()
+        col = "Close" if "Close" in data.columns else "Adj Close"
+        close = data[[col]]
+        close.columns = pd.MultiIndex.from_product([[col], TICKERS])
+
+    close = close.ffill()
+    all_days = pd.date_range(close.index.min(), close.index.max(), freq="B")
+    close = close.reindex(all_days).ffill()
+    return close
 
 def compute_avg_daily_return(close: pd.DataFrame, window: int = 30) -> pd.Series:
     """Calculate the average daily percent return for each ticker."""
