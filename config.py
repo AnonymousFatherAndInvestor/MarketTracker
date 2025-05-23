@@ -1,4 +1,5 @@
-TICKERS = {
+# List of tickers grouped by asset class and region
+TICKER_GROUPS = {
     "Global Equity": {
         "^GSPC": "S&P 500",
         "^IXIC": "NASDAQ Composite",
@@ -28,10 +29,10 @@ TICKERS = {
         "CHFJPY=X": "CHF/JPY",
     },
     "Commodity": {
-        "GC=F": "Gold Futures",
-        "CL=F": "Crude Oil WTI",
-        "HG=F": "Copper Futures",
-        "BTC-USD": "Bitcoin USD",
+        "GC=F": "Gold",
+        "CL=F": "Crude Oil",
+        "HG=F": "Copper",
+        "BTC-USD": "Bitcoin",
     },
     "Global Sector": {
         "IXN": "Global Tech ETF",
@@ -53,6 +54,52 @@ TICKERS = {
         "IWQU.L": "World Quality Factor ETF",
         "ACWV": "World Min Volatility ETF",
     },
+    "US Sector": {
+        "XLK": "US Info Tech",
+        "XLF": "US Financials",
+        "XLV": "US Health Care",
+        "XLE": "US Energy",
+        "XLB": "US Materials",
+        "XLI": "US Industrials",
+        "XLY": "US Cons Discretionary",
+        "XLP": "US Cons Staples",
+        "XLC": "US Communication Services",
+        "XLU": "US Utilities",
+        "XLRE": "US Real Estate",
+    },
+    "EU Sector": {
+        "EXV3.DE": "EU Info Tech",
+        "EXV1.DE": "EU Banks",
+        "EXV4.DE": "EU Health Care",
+        "EXH1.DE": "EU Oil & Gas",
+    },
+    "Japan Sector": {
+        "1625.T": "JP Info Equipment",
+        "1626.T": "JP IT & Services",
+        "1631.T": "JP Banks",
+        "1621.T": "JP Pharmaceuticals",
+        "1618.T": "JP Energy Resources",
+    },
+    "US Factor": {
+        "VLUE": "US Value",
+        "IWF": "US Growth",
+        "MTUM": "US Momentum",
+        "QUAL": "US Quality",
+        "USMV": "US Min Volatility",
+    },
+    "EU Factor": {
+        "IEVL.L": "EU Value",
+        "IEMO.L": "EU Momentum",
+        "IEFQ.L": "EU Quality",
+    },
+    "Japan Factor": {
+        "EWJV": "Japan Value",
+        "2636.T": "Japan Quality",
+        "1477.T": "Japan Min Volatility",
+    },
 }
 
 REFRESH_INTERVAL = 900  # seconds
+
+# Flatten list of all tickers for download
+ALL_TICKERS = [t for group in TICKER_GROUPS.values() for t in group]
