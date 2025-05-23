@@ -42,6 +42,7 @@ def get_prices(period: str) -> pd.DataFrame:
     close.index = pd.to_datetime(close.index)
     close = close.sort_index()
     idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
+
     close = close.reindex(idx).ffill()
     return close
 
@@ -68,6 +69,7 @@ def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
         rows = []
         for ticker in present:
             s = subset[ticker]
+
             first = s.iloc[0]
             last = s.iloc[-1]
             change = (last - first) / first * 100
@@ -102,6 +104,7 @@ def index():
     close = get_prices(period)
     close_30d = get_prices("1mo")
     avg_returns = compute_avg_daily_return(close_30d)
+
     summary, tables = build_summary(close, avg_returns)
     chart_html = summary_chart(summary)
     return render_template("index.html", periods=PERIODS, period=period, chart=chart_html, tables=tables)
