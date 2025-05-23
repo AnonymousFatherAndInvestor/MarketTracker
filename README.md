@@ -4,7 +4,7 @@ A minimal Flask dashboard to display selected market indices using yfinance.
 
 ## Setup
 
-Install dependencies:
+Install dependencies (Flask, yfinance, cachetools, plotly and matplotlib):
 
 ```bash
 pip install -r requirements.txt
