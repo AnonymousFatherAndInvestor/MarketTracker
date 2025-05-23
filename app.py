@@ -1,0 +1,60 @@
+from flask import Flask, render_template, request
+import pandas as pd
+import yfinance as yf
+from cachetools import TTLCache, cached
+from config import TICKERS, REFRESH_INTERVAL
+
+app = Flask(__name__)
+
+PERIODS = ["1d", "5d", "1mo", "6mo", "1y", "ytd", "5y", "max"]
+
+cache = TTLCache(maxsize=32, ttl=REFRESH_INTERVAL)
+
+@cached(cache, key=lambda period: period)
+def get_prices(period: str):
+    data = yf.download(TICKERS, period=period, interval="1d", group_by="ticker")
+    if data.empty:
+        return pd.DataFrame()
+    # yfinance returns a MultiIndex dataframe when multiple tickers are requested
+    try:
+        close = data["Close"]
+    except KeyError:
+        close = data.xs("Close", level=1, axis=1)
+    return close.ffill()
+
+@app.route("/")
+def index():
+    period = request.args.get("period", "1mo")
+    if period not in PERIODS:
+        period = "1mo"
+    close = get_prices(period)
+    if close.empty or len(close) < 2:
+        return render_template(
+            "index.html",
+            period=period,
+            last_close={},
+            pct_change={},
+            chart_data="",
+            periods=PERIODS,
+        )
+    last_close = close.iloc[-1]
+    prev_close = close.iloc[-2]
+    pct_change = (last_close - prev_close) / prev_close * 100
+    chart = close.plot().get_figure()
+    import io, base64
+    buf = io.BytesIO()
+    chart.savefig(buf, format="png")
+    buf.seek(0)
+    encoded = base64.b64encode(buf.read()).decode("utf-8")
+    buf.close()
+    return render_template(
+        "index.html",
+        period=period,
+        last_close=last_close.round(2).to_dict(),
+        pct_change=pct_change.round(2).to_dict(),
+        chart_data=encoded,
+        periods=PERIODS,
+    )
+
+if __name__ == "__main__":
+    app.run(debug=True)
