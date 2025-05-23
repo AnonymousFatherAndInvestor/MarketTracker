@@ -75,31 +75,29 @@ def build_summary(close: pd.DataFrame):
         present = [t for t in tickers if t in close.columns]
         if not present:
             continue
-        subset = close[present]
 
+        series_dict: dict[str, pd.Series] = {}
         rows = []
         norm_series = []
         for ticker in present:
-            s = subset[ticker].dropna()
-            if s.empty:
+            series = close[ticker].dropna()
+            if series.empty:
                 continue
-            first = s.iloc[0]
-            last = s.iloc[-1]
-            change = (last - first) / first * 100
+            norm = series.div(series.iloc[0]).mul(100)
+            series_dict[ticker] = norm
+            change = (series.iloc[-1] - series.iloc[0]) / series.iloc[0] * 100
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
                 "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
-                "spark": _mini_chart(norm_df[ticker]),
+                "spark": _mini_chart(norm),
             })
-            norm_series.append((s / first) * 100)
 
-        if rows:
-            norm_df = pd.concat(norm_series, axis=1, join="outer")
-            norm_df.columns = [r["ticker"] for r in rows]
-            data[group] = norm_df
+        if series_dict:
+            data[group] = pd.concat(series_dict, axis=1)
             tables[group] = rows
+
     return data, tables
 
 
