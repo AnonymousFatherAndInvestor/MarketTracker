@@ -94,8 +94,8 @@ CATEGORIES = {
     },
 }
 
-PERIODS = ["1d", "5d", "1mo", "6mo", "1y", "ytd", "5y", "max"]
+PERIODS = ["1d", "5d", "1mo", "6mo", "1y", "ytd", "5y"]
 DEFAULT_PERIOD = "1mo"
-REFRESH_INTERVAL = 900
+REFRESH_INTERVAL = 3600
 
 TICKERS = [t for group in CATEGORIES.values() for t in group.keys()]
