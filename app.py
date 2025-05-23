@@ -18,7 +18,7 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
-    """Download closing prices and forward fill on business days."""
+    """Download closing prices for all tickers and reindex each series to business days."""
     tickers_str = " ".join(TICKERS)
     data = yf.download(
         tickers_str,
@@ -28,6 +28,8 @@ def get_prices(period: str) -> pd.DataFrame:
         auto_adjust=False,
         threads=True,
     )
+
+    close_dict: dict[str, pd.Series] = {}
 
     if isinstance(data.columns, pd.MultiIndex):
         # extract Close or Adj Close for each ticker individually
@@ -58,6 +60,7 @@ def get_prices(period: str) -> pd.DataFrame:
     return close
 
 
+
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines"))
@@ -77,16 +80,10 @@ def build_summary(close: pd.DataFrame):
         present = [t for t in tickers if t in close.columns]
         if not present:
             continue
-        subset = close[present]
-        first_valid = subset.dropna(how="any").index.min()
-        if pd.isna(first_valid):
-            continue
-        subset = subset.loc[first_valid:].ffill()
 
-        norm_df = subset.div(subset.iloc[0]).mul(100)
-        data[group] = norm_df
-
+        series_dict: dict[str, pd.Series] = {}
         rows = []
+        norm_series = []
         for ticker in present:
             s = subset[ticker]
             first = s.iloc[0]
@@ -95,11 +92,15 @@ def build_summary(close: pd.DataFrame):
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
-                "last": round(float(last), 2),
+                "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
                 "spark": _mini_chart(norm_df[ticker]),
             })
-        tables[group] = rows
+
+        if series_dict:
+            data[group] = pd.concat(series_dict, axis=1)
+            tables[group] = rows
+
     return data, tables
 
 
