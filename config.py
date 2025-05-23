@@ -6,7 +6,6 @@ CATEGORIES = {
         "^FTSE": "FTSE 100",
         "^STOXX50E": "Euro Stoxx 50",
         "^N225": "Nikkei 225",
-        "^TOPX": "TOPIX",
         "1563.T": "TSE Growth Core ETF",
         "1343.T": "TSE REIT ETF",
         "^HSI": "Hang Seng",
