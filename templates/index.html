@@ -24,7 +24,13 @@
   <h3 class="mt-4">{{ group }}</h3>
   <table class="table table-sm table-striped">
     <thead>
-      <tr><th>Ticker</th><th>Name</th><th class="text-end">Last Close</th><th class="text-end">% Change</th></tr>
+      <tr>
+        <th>Ticker</th>
+        <th>Name</th>
+        <th class="text-end">Last Close</th>
+        <th class="text-end">% Change</th>
+        <th class="text-end">Avg Daily Return (30d)</th>
+      </tr>
     </thead>
     <tbody>
       {% for row in rows %}
@@ -33,6 +39,7 @@
         <td>{{ row.name }}</td>
         <td class="text-end">{{ row.last }}</td>
         <td class="text-end">{{ row.change }}%</td>
+        <td class="text-end">{% if row.avg is not none %}{{ row.avg }}%{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
