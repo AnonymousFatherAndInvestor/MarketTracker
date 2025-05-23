@@ -17,7 +17,6 @@ CATEGORIES = {
         "^IRX": "US 3M T-Bill",
         "^TNX": "US 10Y Treasury",
         "^JGB10Y": "Japan 10Y Gov Bond",
-        "^SG10Y=RR": "Singapore 10Y Gov Bond",
         "^DE10Y=X": "Germany 10Y Bund",
     },
     "Currency": {
