@@ -5,6 +5,8 @@ import pandas as pd
 import yfinance as yf
 from cachetools import TTLCache, cached
 from config import TICKERS, REFRESH_INTERVAL
+import matplotlib
+import plotly
 
 app = Flask(__name__)
 
