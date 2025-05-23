@@ -18,5 +18,3 @@ python app.py
 
 The app relies on **matplotlib** for rendering charts, which is installed via
 `requirements.txt`.
-
-Open your browser at `http://localhost:5000`.
