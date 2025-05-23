@@ -7,7 +7,7 @@ CATEGORIES = {
         "^STOXX50E": "Euro Stoxx 50",
         "^N225": "Nikkei 225",
         "^TOPX": "TOPIX",
-        "9816.T": "TSE Growth Core ETF",
+        "1563.T": "TSE Growth Core ETF",
         "1343.T": "TSE REIT ETF",
         "^HSI": "Hang Seng",
         "000001.SS": "Shanghai Composite",
@@ -16,8 +16,6 @@ CATEGORIES = {
     "Interest Rate": {
         "^IRX": "US 3M T-Bill",
         "^TNX": "US 10Y Treasury",
-        "^JGB10Y": "Japan 10Y Gov Bond",
-        "^DE10Y=X": "Germany 10Y Bund",
     },
     "Currency": {
         "JPY=X": "USD/JPY",
