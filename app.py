@@ -1,48 +1,75 @@
-from flask import Flask, render_template, request
-import yfinance as yf
+from flask import Flask, render_template, request, jsonify
 from cachetools import TTLCache, cached
+import yfinance as yf
 import pandas as pd
-from config import CATEGORIES, TICKERS, REFRESH_INTERVAL
-from plotly.offline import plot
 import plotly.graph_objects as go
+from config import CATEGORIES, TICKERS, PERIODS, DEFAULT_PERIOD, REFRESH_INTERVAL
 
 app = Flask(__name__)
 
-PERIODS = ["1d", "5d", "1mo", "6mo", "1y", "ytd", "5y", "max"]
-
-cache = TTLCache(maxsize=32, ttl=REFRESH_INTERVAL)
+cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
-def get_prices(period: str):
-    data = yf.download(TICKERS, period=period, interval="1d")
-    return data
+def get_prices(period: str) -> pd.DataFrame:
+    tickers_str = " ".join(TICKERS)
+    data = yf.download(tickers_str, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=True)
+    if isinstance(data.columns, pd.MultiIndex):
+        close = data["Close"]
+    else:
+        # single ticker case
+        close = data[["Close"]]
+        close.columns = pd.MultiIndex.from_product([["Close"], TICKERS])
+    return close.ffill()
 
-  @app.route("/")
+def build_summary(close: pd.DataFrame):
+    summary = {}
+    tables = {}
+    for group, tickers in CATEGORIES.items():
+        series_list = []
+        rows = []
+        for ticker, name in tickers.items():
+            if ticker not in close.columns:
+                continue
+            s = close[ticker].dropna()
+            if s.empty:
+                continue
+            first = s.iloc[0]
+            last = s.iloc[-1]
+            change = (last - first) / first * 100
+            rows.append({"ticker": ticker, "name": name, "last": round(float(last),2), "change": round(float(change),2)})
+            series_list.append((s / first) * 100)
+        if series_list:
+            summary[group] = pd.concat(series_list, axis=1).mean(axis=1)
+            tables[group] = rows
+    return summary, tables
+
+def summary_chart(summary: dict) -> str:
+    fig = go.Figure()
+    for name, series in summary.items():
+        fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines", name=name))
+    fig.update_layout(height=400, margin=dict(l=40,r=40,t=40,b=40))
+    return fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+@app.route("/")
 def index():
-    period = request.args.get("period", "1mo")
+    period = request.args.get("period", DEFAULT_PERIOD)
     if period not in PERIODS:
-        period = "1mo"
-    data = get_prices(period)
-    close = data["Close"]
-    last_close = close.iloc[-1]
-    prev_close = close.iloc[-2]
-    pct_change = (last_close - prev_close) / prev_close * 100
-    chart = close.plot().get_figure()
-    import io, base64
-    buf = io.BytesIO()
-    chart.savefig(buf, format="png")
-    buf.seek(0)
-    encoded = base64.b64encode(buf.read()).decode("utf-8")
-    buf.close()
-    return render_template(
-        "index.html",
-        period=period,
-        last_close=last_close.round(2).to_dict(),
-        pct_change=pct_change.round(2).to_dict(),
-        chart_data=encoded,
-        periods=PERIODS,
+        period = DEFAULT_PERIOD
+    close = get_prices(period)
+    summary, tables = build_summary(close)
+    chart_html = summary_chart(summary)
+    return render_template("index.html", periods=PERIODS, period=period, chart=chart_html, tables=tables)
 
-    )
+@app.route("/api/summary")
+def api_summary():
+    period = request.args.get("period", DEFAULT_PERIOD)
+    if period not in PERIODS:
+        period = DEFAULT_PERIOD
+    close = get_prices(period)
+    summary, _ = build_summary(close)
+    resp = {k: v.round(2).to_dict() for k,v in summary.items()}
+    return jsonify(resp)
+
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -7,32 +7,37 @@
   <title>Market Tracker</title>
 </head>
 <body class="p-4">
-  <div class="container">
-    <h1 class="mb-4">Market Tracker</h1>
-    <form method="get" class="mb-3">
-      <label for="period" class="form-label">Period:</label>
-      <select id="period" name="period" onchange="this.form.submit()" class="form-select w-auto d-inline-block ms-2">
-        {% for p in periods %}
+<div class="container">
+  <h1 class="mb-4">Market Tracker</h1>
+  <form method="get" class="mb-3">
+    <label for="period" class="form-label">Period:</label>
+    <select id="period" name="period" onchange="this.form.submit()" class="form-select w-auto d-inline-block ms-2">
+      {% for p in periods %}
         <option value="{{ p }}" {% if p == period %}selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-      </select>
-    </form>
-    <div class="row mb-4">
-      {% for ticker, value in last_close.items() %}
-      <div class="col-md-6 mb-3">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">{{ ticker }}</h5>
-            <p class="card-text">Close: {{ value }}</p>
-            <p class="card-text">Daily %: {{ pct_change[ticker] }}</p>
-          </div>
-        </div>
-      </div>
       {% endfor %}
-    </div>
-    <div class="text-center">
-      <img src="data:image/png;base64,{{ chart_data }}" class="img-fluid"/>
-    </div>
+    </select>
+  </form>
+  <div class="mb-4">
+    {{ chart|safe }}
   </div>
+  {% for group, rows in tables.items() %}
+  <h3 class="mt-4">{{ group }}</h3>
+  <table class="table table-sm table-striped">
+    <thead>
+      <tr><th>Ticker</th><th>Name</th><th class="text-end">Last Close</th><th class="text-end">% Change</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.ticker }}</td>
+        <td>{{ row.name }}</td>
+        <td class="text-end">{{ row.last }}</td>
+        <td class="text-end">{{ row.change }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</div>
 </body>
 </html>

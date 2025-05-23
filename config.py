@@ -29,9 +29,9 @@ CATEGORIES = {
     },
     "Commodity": {
         "GC=F": "Gold Futures",
+        "BTC-USD": "Bitcoin",
         "CL=F": "Crude Oil WTI",
         "HG=F": "Copper Futures",
-        "BTC-USD": "Bitcoin",
     },
     "Global Sector ETFs": {
         "IXN": "Global Tech ETF",
@@ -46,6 +46,32 @@ CATEGORIES = {
         "JXI": "Global Utilities ETF",
         "RWO": "Global Real Estate ETF",
     },
+    "US Sector ETFs": {
+        "XLK": "US Technology ETF",
+        "XLF": "US Financials ETF",
+        "XLV": "US Health Care ETF",
+        "XLE": "US Energy ETF",
+        "XLB": "US Materials ETF",
+        "XLI": "US Industrials ETF",
+        "XLY": "US Cons Discretionary ETF",
+        "XLP": "US Cons Staples ETF",
+        "XLC": "US Communication Services ETF",
+        "XLU": "US Utilities ETF",
+        "XLRE": "US Real Estate ETF",
+    },
+    "Europe Sector ETFs": {
+        "EXV3.DE": "Europe Tech ETF",
+        "EXV1.DE": "Europe Banks ETF",
+        "EXV4.DE": "Europe Health Care ETF",
+        "EXH1.DE": "Europe Oil & Gas ETF",
+    },
+    "Japan Sector ETFs": {
+        "1625.T": "JP Electronics ETF",
+        "1626.T": "JP IT & Services ETF",
+        "1631.T": "JP Banks ETF",
+        "1621.T": "JP Pharma ETF",
+        "1618.T": "JP Energy Resources ETF",
+    },
     "Global Factor ETFs": {
         "IWVL.L": "World Value Factor ETF",
         "IWFG.L": "World Growth Factor ETF",
@@ -53,7 +79,27 @@ CATEGORIES = {
         "IWQU.L": "World Quality Factor ETF",
         "ACWV": "World Min Volatility ETF",
     },
+    "US Factor ETFs": {
+        "VLUE": "US Value ETF",
+        "IWF": "US Growth ETF",
+        "MTUM": "US Momentum ETF",
+        "QUAL": "US Quality ETF",
+        "USMV": "US Min Volatility ETF",
+    },
+    "Europe Factor ETFs": {
+        "IEVL.L": "Europe Value ETF",
+        "IEMO.L": "Europe Momentum ETF",
+        "IEFQ.L": "Europe Quality ETF",
+    },
+    "Japan Factor ETFs": {
+        "EWJV": "Japan Value ETF",
+        "2636.T": "Japan Quality ETF",
+        "1477.T": "Japan Min Volatility ETF",
+    },
 }
 
+PERIODS = ["1d", "5d", "1mo", "6mo", "1y", "ytd", "5y", "max"]
+DEFAULT_PERIOD = "1mo"
+REFRESH_INTERVAL = 900
+
 TICKERS = [t for group in CATEGORIES.values() for t in group.keys()]
-REFRESH_INTERVAL = 900  # seconds
