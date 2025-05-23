@@ -18,7 +18,7 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
-    """Download closing prices and forward fill on business days."""
+    """Download closing prices for all tickers and reindex each series to business days."""
     tickers_str = " ".join(TICKERS)
     data = yf.download(
         tickers_str,
@@ -29,34 +29,31 @@ def get_prices(period: str) -> pd.DataFrame:
         threads=True,
     )
 
-    if isinstance(data.columns, pd.MultiIndex):
-        cols = data.columns.get_level_values(1)
-        if "Close" in cols:
-            close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
-        elif "Adj Close" in cols:
-            close = data.swaplevel(axis=1).xs("Adj Close", level=0, axis=1)
-        else:
-            raise KeyError("Close")
-    else:
-        if "Close" in data.columns:
-            close = data[["Close"]]
-        elif "Adj Close" in data.columns:
-            close = data[["Adj Close"]].rename(columns={"Adj Close": "Close"})
-        else:
-            raise KeyError("Close")
-        close.columns = pd.Index(TICKERS)
+    close_dict: dict[str, pd.Series] = {}
 
-    close.index = pd.to_datetime(close.index)
-    close = close.sort_index()
-    # align to business days without extending beyond the last price for each
-    # ticker. Missing days inside the range are forward filled but trailing
-    # NaNs remain so later logic can drop or ignore them.
-    idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
-    close = close.reindex(idx)
-    for col in close.columns:
-        last = close[col].last_valid_index()
-        if last is not None:
-            close.loc[:last, col] = close.loc[:last, col].ffill()
+    if isinstance(data.columns, pd.MultiIndex):
+        for ticker in data.columns.levels[0]:
+            df = data[ticker]
+            col = "Close" if "Close" in df.columns else "Adj Close" if "Adj Close" in df.columns else None
+            if col is None:
+                continue
+            series = df[col].dropna()
+            if series.empty:
+                continue
+            series.index = pd.to_datetime(series.index)
+            idx = pd.date_range(series.index.min(), series.index.max(), freq="B")
+            close_dict[ticker] = series.reindex(idx).ffill()
+    else:
+        col = "Close" if "Close" in data.columns else "Adj Close" if "Adj Close" in data.columns else None
+        if col:
+            series = data[col].dropna()
+            if not series.empty:
+                series.index = pd.to_datetime(series.index)
+                idx = pd.date_range(series.index.min(), series.index.max(), freq="B")
+                close_dict[TICKERS[0]] = series.reindex(idx).ffill()
+
+    close = pd.DataFrame(close_dict)
+    close.sort_index(inplace=True)
     return close
 
 def _mini_chart(series: pd.Series) -> str:
@@ -76,25 +73,32 @@ def build_summary(close: pd.DataFrame):
     tables: dict[str, list] = {}
     for group, tickers in CATEGORIES.items():
         present = [t for t in tickers if t in close.columns]
+        if not present:
+            continue
+        subset = close[present]
+
         rows = []
-        frames = []
+        norm_series = []
         for ticker in present:
-            series = close[ticker].dropna()
-            if series.empty:
+            s = subset[ticker].dropna()
+            if s.empty:
                 continue
-            series = series.ffill()
-            norm = (series / series.iloc[0]) * 100
-            frames.append(norm.rename(ticker))
-            change = (series.iloc[-1] - series.iloc[0]) / series.iloc[0] * 100
+            first = s.iloc[0]
+            last = s.iloc[-1]
+            change = (last - first) / first * 100
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
                 "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
-                "spark": _mini_chart(norm),
+                "spark": _mini_chart((s / first) * 100),
             })
+            norm_series.append((s / first) * 100)
+
         if rows:
-            data[group] = pd.concat(frames, axis=1)
+            norm_df = pd.concat(norm_series, axis=1, join="outer")
+            norm_df.columns = [r["ticker"] for r in rows]
+            data[group] = norm_df
             tables[group] = rows
     return data, tables
 
