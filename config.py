@@ -54,4 +54,6 @@ CATEGORIES = {
         "ACWV": "World Min Volatility ETF",
     },
 }
+
+TICKERS = [t for group in CATEGORIES.values() for t in group.keys()]
 REFRESH_INTERVAL = 900  # seconds
