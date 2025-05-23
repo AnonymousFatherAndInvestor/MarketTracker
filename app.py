@@ -5,8 +5,6 @@ import pandas as pd
 import yfinance as yf
 from cachetools import TTLCache, cached
 from config import TICKERS, REFRESH_INTERVAL
-import matplotlib
-import plotly
 
 app = Flask(__name__)
 
@@ -16,9 +14,13 @@ cache = TTLCache(maxsize=32, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
+    """Download prices for all tickers, skipping ones with no data."""
     frames = []
     for ticker in TICKERS:
-        df = yf.download(ticker, period=period, interval="1d")
+        try:
+            df = yf.download(ticker, period=period, interval="1d", progress=False)
+        except Exception:
+            continue
         if not df.empty:
             df = df[["Close"]].rename(columns={"Close": ticker})
             frames.append(df)
