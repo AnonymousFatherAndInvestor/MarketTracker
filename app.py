@@ -91,7 +91,7 @@ def build_summary(close: pd.DataFrame):
                 "name": tickers[ticker],
                 "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
-                "spark": _mini_chart((s / first) * 100),
+                "spark": _mini_chart(norm_df[ticker]),
             })
             norm_series.append((s / first) * 100)
 
