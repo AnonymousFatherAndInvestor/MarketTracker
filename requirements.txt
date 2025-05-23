@@ -1,0 +1,6 @@
+Flask
+yfinance
+cachetools
+plotly
+
+matplotlib
