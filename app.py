@@ -48,8 +48,15 @@ def get_prices(period: str) -> pd.DataFrame:
 
     close.index = pd.to_datetime(close.index)
     close = close.sort_index()
+    # align to business days without extending beyond the last price for each
+    # ticker. Missing days inside the range are forward filled but trailing
+    # NaNs remain so later logic can drop or ignore them.
     idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
-    close = close.reindex(idx).ffill()
+    close = close.reindex(idx)
+    for col in close.columns:
+        last = close[col].last_valid_index()
+        if last is not None:
+            close.loc[:last, col] = close.loc[:last, col].ffill()
     return close
 
 def _mini_chart(series: pd.Series) -> str:
