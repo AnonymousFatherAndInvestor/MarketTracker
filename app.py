@@ -1,7 +1,10 @@
 from flask import Flask, render_template, request
 import yfinance as yf
 from cachetools import TTLCache, cached
-from config import TICKERS, REFRESH_INTERVAL
+import pandas as pd
+from config import CATEGORIES, TICKERS, REFRESH_INTERVAL
+from plotly.offline import plot
+import plotly.graph_objects as go
 
 app = Flask(__name__)
 
@@ -14,7 +17,7 @@ def get_prices(period: str):
     data = yf.download(TICKERS, period=period, interval="1d")
     return data
 
-@app.route("/")
+  @app.route("/")
 def index():
     period = request.args.get("period", "1mo")
     if period not in PERIODS:
@@ -38,6 +41,7 @@ def index():
         pct_change=pct_change.round(2).to_dict(),
         chart_data=encoded,
         periods=PERIODS,
+
     )
 
 if __name__ == "__main__":
