@@ -89,7 +89,7 @@ def build_summary(close: pd.DataFrame):
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
-                "last": round(float(last), 2),
+                "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
                 "spark": _mini_chart((s / first) * 100),
             })
