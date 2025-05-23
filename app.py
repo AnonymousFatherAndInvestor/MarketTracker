@@ -70,6 +70,7 @@ def index():
         else:
             summary_charts[category] = None
 
+
     return render_template(
         "index.html",
         period=period,
