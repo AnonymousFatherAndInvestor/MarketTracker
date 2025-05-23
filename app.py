@@ -116,7 +116,6 @@ def summary_charts(data: dict[str, pd.DataFrame]) -> dict:
         charts[group] = fig.to_html(full_html=False, include_plotlyjs="cdn")
     return charts
 
-
 @app.route("/")
 def index():
     period = request.args.get("period", DEFAULT_PERIOD)
