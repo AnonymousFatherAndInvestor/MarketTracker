@@ -93,6 +93,7 @@ def index():
         period=period,
         periods=PERIODS,
         categories=categories,
+
     )
 
 if __name__ == "__main__":
