@@ -4,8 +4,7 @@ A minimal Flask dashboard to display selected market indices using yfinance.
 
 ## Setup
 
-Install dependencies (requires internet access to download packages). The app
-uses pandas plotting, which relies on `matplotlib`:
+Install dependencies (requires internet access to reach PyPI):
 
 ```bash
 pip install -r requirements.txt
@@ -17,4 +16,5 @@ Run the application:
 python app.py
 ```
 
-Open your browser at `http://localhost:5000`.
+The app relies on **matplotlib** for rendering charts, which is installed via
+`requirements.txt`.
