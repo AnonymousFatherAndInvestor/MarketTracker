@@ -39,7 +39,6 @@ def index():
     last_close = {}
     pct_change = {}
     chart_data = ""
-
     if len(close) >= 2:
         last = close.iloc[-1]
         prev = close.iloc[-2]

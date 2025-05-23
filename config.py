@@ -14,5 +14,4 @@ TICKERS = [
     # Factor ETFs
     "IWVL.L", "IWFG.L", "IWFM.L", "IWQU.L", "ACWV",
 ]
-
 REFRESH_INTERVAL = 900  # seconds
