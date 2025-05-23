@@ -54,5 +54,4 @@ CATEGORIES = {
         "ACWV": "World Min Volatility ETF",
     },
 }
-
 REFRESH_INTERVAL = 900  # seconds
