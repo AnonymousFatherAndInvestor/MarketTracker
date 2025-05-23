@@ -18,7 +18,7 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
-    """Download closing prices and forward fill on business days."""
+    """Download closing prices for all tickers and reindex each series to business days."""
     tickers_str = " ".join(TICKERS)
     data = yf.download(
         tickers_str,
@@ -29,28 +29,36 @@ def get_prices(period: str) -> pd.DataFrame:
         threads=True,
     )
 
+    close_dict: dict[str, pd.Series] = {}
+
     if isinstance(data.columns, pd.MultiIndex):
-        cols = data.columns.get_level_values(1)
-        if "Close" in cols:
-            close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
-        elif "Adj Close" in cols:
-            close = data.swaplevel(axis=1).xs("Adj Close", level=0, axis=1)
+        # extract Close or Adj Close for each ticker individually
+        frames: list[pd.Series] = []
+        for ticker in TICKERS:
+            if (ticker, "Close") in data.columns:
+                frames.append(data[ticker]["Close"].rename(ticker))
+            elif (ticker, "Adj Close") in data.columns:
+                frames.append(data[ticker]["Adj Close"].rename(ticker))
+        if frames:
+            close = pd.concat(frames, axis=1)
         else:
-            raise KeyError("Close")
+            close = pd.DataFrame()
     else:
+        # yf returns a single-index dataframe when only one ticker succeeds
         if "Close" in data.columns:
             close = data[["Close"]]
         elif "Adj Close" in data.columns:
             close = data[["Adj Close"]].rename(columns={"Adj Close": "Close"})
         else:
             raise KeyError("Close")
-        close.columns = pd.Index(TICKERS)
+        close.columns = pd.Index(TICKERS[:1])
 
     close.index = pd.to_datetime(close.index)
     close = close.sort_index()
     idx = pd.date_range(close.index.min(), close.index.max(), freq="B")
     close = close.reindex(idx).ffill()
     return close
+
 
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
@@ -72,6 +80,7 @@ def build_summary(close: pd.DataFrame):
         if not present:
             continue
 
+        series_dict: dict[str, pd.Series] = {}
         rows = []
         norm_parts = {}
         for ticker in present:
@@ -87,7 +96,7 @@ def build_summary(close: pd.DataFrame):
             rows.append({
                 "ticker": ticker,
                 "name": tickers[ticker],
-                "last": round(float(last), 2),
+                "last": round(float(series.iloc[-1]), 2),
                 "change": round(float(change), 2),
                 "spark": _mini_chart(norm_parts[ticker]),
             })
