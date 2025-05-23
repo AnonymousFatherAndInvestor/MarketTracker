@@ -11,102 +11,93 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
-    """Download close prices for all tickers and forward-fill missing days."""
+    """Download closing prices for all tickers and reindex to business days."""
     tickers_str = " ".join(TICKERS)
     data = yf.download(
         tickers_str,
         period=period,
         interval="1d",
-        group_by="ticker",
+        group_by="column",
         auto_adjust=False,
         threads=True,
     )
 
     if isinstance(data.columns, pd.MultiIndex):
-        # Detect which level contains the price fields
-        if "Close" in data.columns.get_level_values(1) or "Adj Close" in data.columns.get_level_values(1):
-            lvl = 1
-        else:
-            data = data.swaplevel(axis=1)
-            lvl = 0
-        label = "Adj Close" if "Adj Close" in data.columns.get_level_values(lvl) else "Close"
-        close = data.xs(label, level=lvl, axis=1)
+        field = "Adj Close" if "Adj Close" in data.columns.levels[0] else "Close"
+        close = data[field]
     else:
-        label = "Adj Close" if "Adj Close" in data.columns else "Close"
-        close = data[[label]]
+        col = "Adj Close" if "Adj Close" in data.columns else "Close"
+        close = data[[col]]
         close.columns = [TICKERS[0]]
 
-    bdays = pd.date_range(close.index.min(), close.index.max(), freq="B")
-    close = close.reindex(bdays).ffill()
+    close.index = pd.to_datetime(close.index)
+    idx = pd.date_range(start=close.index.min(), end=close.index.max(), freq="B")
+    close = close.reindex(idx).ffill()
     return close
 
+def compute_avg_daily_return(close: pd.DataFrame, window: int = 30) -> pd.Series:
+    """Calculate the average daily percent return for each ticker."""
+    returns = close.pct_change()
+    return returns.tail(window).mean() * 100
 
 def _mini_chart(series: pd.Series) -> str:
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines", line=dict(width=1)))
+    fig.add_trace(go.Scatter(x=series.index, y=series, mode="lines"))
     fig.update_layout(
-        width=150,
-        height=60,
-        margin=dict(l=0, r=0, t=0, b=0),
-        xaxis_visible=False,
-        yaxis_visible=False,
-    )
-    return fig.to_html(full_html=False, include_plotlyjs=False)
-
-
-
-def sparkline(series: pd.Series) -> str:
-    """Return a small inline Plotly chart as HTML."""
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(x=series.index, y=series.values, mode="lines", line=dict(width=1))
-    )
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
         height=40,
-        xaxis_visible=False,
-        yaxis_visible=False,
+        margin=dict(l=0, r=0, t=0, b=0),
+
     )
     return fig.to_html(full_html=False, include_plotlyjs=False)
 
-def build_summary(close: pd.DataFrame):
-    summary = {}
-    tables = {}
+
+def build_summary(close: pd.DataFrame, avg_returns: pd.Series | None = None):
+    """Return normalised data per group and table rows."""
+    data: dict[str, pd.DataFrame] = {}
+    tables: dict[str, list] = {}
     for group, tickers in CATEGORIES.items():
-        series_dict = {}
+        group_df = close[[t for t in tickers if t in close.columns]].dropna(how="all")
+        if group_df.empty:
+            continue
+        norm_df = group_df.div(group_df.iloc[0]).mul(100)
+        data[group] = norm_df
+
         rows = []
         for ticker, name in tickers.items():
-            if ticker not in close.columns:
+            if ticker not in group_df:
                 continue
-            s = close[ticker].dropna()
+            s = group_df[ticker].dropna()
             if s.empty:
                 continue
             first = s.iloc[0]
             last = s.iloc[-1]
             change = (last - first) / first * 100
+            avg_ret = None
+            if avg_returns is not None and ticker in avg_returns:
+                avg_ret = avg_returns[ticker]
             rows.append({
                 "ticker": ticker,
                 "name": name,
                 "last": round(float(last), 2),
                 "change": round(float(change), 2),
-                "chart": _mini_chart(s),
+                "avg": round(float(avg_ret), 4) if avg_ret is not None else None,
+                "spark": _mini_chart(norm_df[ticker]),
             })
-            series_dict[ticker] = (s / first) * 100
-        if series_dict:
-            summary[group] = pd.DataFrame(series_dict)
-            tables[group] = rows
-    return summary, tables
+        tables[group] = rows
+    return data, tables
 
-def summary_charts(data: dict) -> dict:
+
+def summary_charts(data: dict[str, pd.DataFrame]) -> dict:
     charts = {}
     for group, df in data.items():
         fig = go.Figure()
-        for col in df.columns:
-            fig.add_trace(
-                go.Scatter(x=df.index, y=df[col], mode="lines", name=col)
-            )
-        fig.update_layout(height=300, margin=dict(l=40, r=40, t=30, b=30))
-        charts[group] = fig.to_html(full_html=False, include_plotlyjs=False)
+        for ticker in df.columns:
+            name = CATEGORIES[group].get(ticker, ticker)
+            fig.add_trace(go.Scatter(x=df.index, y=df[ticker], mode="lines", name=name))
+        fig.update_layout(height=300, margin=dict(l=40, r=40, t=40, b=40))
+        charts[group] = fig.to_html(full_html=False, include_plotlyjs="cdn")
     return charts
 
 @app.route("/")
@@ -115,9 +106,17 @@ def index():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    summary, tables = build_summary(close)
-    charts = summary_charts(summary)
-    return render_template("index.html", periods=PERIODS, period=period, charts=charts, tables=tables)
+    close_30d = get_prices("1mo")
+    avg_returns = compute_avg_daily_return(close_30d)
+    data, tables = build_summary(close, avg_returns)
+    charts = summary_charts(data)
+    return render_template(
+        "index.html",
+        periods=PERIODS,
+        period=period,
+        charts=charts,
+        tables=tables,
+    )
 
 @app.route("/api/summary")
 def api_summary():
@@ -125,8 +124,10 @@ def api_summary():
     if period not in PERIODS:
         period = DEFAULT_PERIOD
     close = get_prices(period)
-    summary, _ = build_summary(close)
-    resp = {grp: df.round(2).to_dict() for grp, df in summary.items()}
+    close_30d = get_prices("1mo")
+    avg_returns = compute_avg_daily_return(close_30d)
+    data, _ = build_summary(close, avg_returns)
+    resp = {grp: df.round(2).to_dict() for grp, df in data.items()}
     return jsonify(resp)
 
 
