@@ -1,11 +1,12 @@
 # MarketTracker
 
-A minimal Flask dashboard to display selected market indices using yfinance and
-render interactive charts with Plotly.
+A minimal Flask dashboard to display selected market indices using yfinance and Plotly.
 
 ## Setup
 
-Install dependencies (internet access is required to download packages):
+This project requires internet access to install dependencies and download market data.
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
