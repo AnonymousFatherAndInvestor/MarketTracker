@@ -14,7 +14,8 @@ def get_prices(period: str) -> pd.DataFrame:
     tickers_str = " ".join(TICKERS)
     data = yf.download(tickers_str, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=True)
     if isinstance(data.columns, pd.MultiIndex):
-        close = data["Close"]
+        # columns are (ticker, field) -> swap to (field, ticker) and pick Close
+        close = data.swaplevel(axis=1).xs("Close", level=0, axis=1)
     else:
         # single ticker case
         close = data[["Close"]]
