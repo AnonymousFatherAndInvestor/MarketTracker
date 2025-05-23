@@ -48,6 +48,7 @@ def _mini_chart(series: pd.Series) -> str:
         yaxis=dict(visible=False),
         height=40,
         margin=dict(l=0, r=0, t=0, b=0),
+
     )
     return fig.to_html(full_html=False, include_plotlyjs=False)
 
