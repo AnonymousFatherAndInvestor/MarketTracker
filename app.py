@@ -11,6 +11,7 @@ cache = TTLCache(maxsize=8, ttl=REFRESH_INTERVAL)
 
 @cached(cache, key=lambda period: period)
 def get_prices(period: str) -> pd.DataFrame:
+    """Download close prices for all tickers and forward-fill missing days."""
     tickers_str = " ".join(TICKERS)
     data = yf.download(
         tickers_str,
@@ -52,6 +53,21 @@ def _mini_chart(series: pd.Series) -> str:
     )
     return fig.to_html(full_html=False, include_plotlyjs=False)
 
+
+
+def sparkline(series: pd.Series) -> str:
+    """Return a small inline Plotly chart as HTML."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=series.index, y=series.values, mode="lines", line=dict(width=1))
+    )
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=40,
+        xaxis_visible=False,
+        yaxis_visible=False,
+    )
+    return fig.to_html(full_html=False, include_plotlyjs=False)
 
 def build_summary(close: pd.DataFrame):
     summary = {}
