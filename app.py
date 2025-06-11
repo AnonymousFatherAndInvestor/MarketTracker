@@ -124,15 +124,25 @@ def summary_charts(data: dict[str, pd.DataFrame]) -> dict:
 @app.route("/")
 def index():
     period = request.args.get("period", DEFAULT_PERIOD)
+    selected_category = request.args.get("category", "")
+    
     if period not in PERIODS:
         period = DEFAULT_PERIOD
+    
     close = get_prices(period)
     data, tables = build_summary(close)
+    
+    # Filter by selected category if specified
+    if selected_category and selected_category in CATEGORIES:
+        data = {selected_category: data.get(selected_category, pd.DataFrame())}
+        tables = {selected_category: tables.get(selected_category, [])}
+    
     charts = summary_charts(data)
     return render_template(
         "index.html",
         periods=PERIODS,
         period=period,
+        selected_category=selected_category,
         charts=charts,
         tables=tables,
     )

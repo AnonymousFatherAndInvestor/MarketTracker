@@ -6,47 +6,145 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
   <title>Market Tracker</title>
-  <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem 0;
+      margin: -1.5rem -15px 2rem -15px;
+      border-radius: 0 0 15px 15px;
+    }
+    .period-selector {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 1rem;
+      backdrop-filter: blur(10px);
+    }
+    .chart-container {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .positive { color: #28a745; font-weight: bold; }
+    .negative { color: #dc3545; font-weight: bold; }
+    .neutral { color: #6c757d; }
+    .table-modern {
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .table-modern th {
+      background: #495057;
+      color: white;
+      border: none;
+      padding: 1rem;
+    }
+    .table-modern td {
+      padding: 0.75rem 1rem;
+      border-color: #e9ecef;
+    }
+    .section-header {
+      background: linear-gradient(90deg, #495057, #6c757d);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      margin: 2rem 0 1rem 0;
+      border-radius: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
 </head>
-<body class="p-4">
-<div class="container">
-  <h1 class="mb-4">Market Tracker</h1>
-  <form method="get" class="mb-3">
-    <label for="period" class="form-label">Period:</label>
-    <select id="period" name="period" onchange="this.form.submit()" class="form-select w-auto d-inline-block ms-2">
-      {% for p in periods %}
-        <option value="{{ p }}" {% if p == period %}selected{% endif %}>{{ p }}</option>
-      {% endfor %}
-    </select>
-  </form>
-  {% for group, rows in tables.items() %}
-  <h3 class="mt-4">{{ group }}</h3>
-  <div class="mb-3">
-    {{ charts[group]|safe }}
+<body class="bg-light">
+<div class="container-fluid">
+  <div class="gradient-bg text-center">
+    <div class="container">
+      <h1 class="display-4 mb-3">📈 Market Tracker</h1>
+      <p class="lead mb-0">Real-time Global Market Dashboard</p>
+    </div>
   </div>
-  <table class="table table-sm table-striped">
-    <thead>
-      <tr>
-        <th>Ticker</th>
-        <th>Name</th>
-        <th class="text-end">Last Close</th>
-        <th class="text-end">% Change</th>
-        <th>Spark</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        <td>{{ row.ticker }}</td>
-        <td>{{ row.name }}</td>
-        <td class="text-end">{{ row.last }}</td>
-        <td class="text-end">{{ row.change }}%</td>
-        <td>{{ row.spark|safe }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endfor %}
+  <div class="container">
+    <div class="period-selector mb-4">
+      <form method="get">
+        <div class="row align-items-center g-3">
+          <div class="col-auto">
+            <label for="period" class="form-label mb-0 text-dark fw-bold">📅 Time Period:</label>
+          </div>
+          <div class="col-auto">
+            <select id="period" name="period" onchange="this.form.submit()" class="form-select">
+              {% for p in periods %}
+                <option value="{{ p }}" {% if p == period %}selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label for="category" class="form-label mb-0 text-dark fw-bold">📊 Asset Class:</label>
+          </div>
+          <div class="col-auto">
+            <select id="category" name="category" onchange="this.form.submit()" class="form-select">
+              <option value="" {% if not selected_category %}selected{% endif %}>All Categories</option>
+              <option value="Global Equity" {% if selected_category == 'Global Equity' %}selected{% endif %}>Global Equity</option>
+              <option value="Interest Rate" {% if selected_category == 'Interest Rate' %}selected{% endif %}>Interest Rate</option>
+              <option value="Currency" {% if selected_category == 'Currency' %}selected{% endif %}>Currency</option>
+              <option value="Commodity" {% if selected_category == 'Commodity' %}selected{% endif %}>Commodity</option>
+              <option value="Global Sector ETFs" {% if selected_category == 'Global Sector ETFs' %}selected{% endif %}>Global Sector ETFs</option>
+              <option value="US Sector ETFs" {% if selected_category == 'US Sector ETFs' %}selected{% endif %}>US Sector ETFs</option>
+              <option value="Europe Sector ETFs" {% if selected_category == 'Europe Sector ETFs' %}selected{% endif %}>Europe Sector ETFs</option>
+              <option value="Japan Sector ETFs" {% if selected_category == 'Japan Sector ETFs' %}selected{% endif %}>Japan Sector ETFs</option>
+              <option value="Global Factor ETFs" {% if selected_category == 'Global Factor ETFs' %}selected{% endif %}>Global Factor ETFs</option>
+              <option value="US Factor ETFs" {% if selected_category == 'US Factor ETFs' %}selected{% endif %}>US Factor ETFs</option>
+              <option value="Europe Factor ETFs" {% if selected_category == 'Europe Factor ETFs' %}selected{% endif %}>Europe Factor ETFs</option>
+              <option value="Japan Factor ETFs" {% if selected_category == 'Japan Factor ETFs' %}selected{% endif %}>Japan Factor ETFs</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    {% for group, rows in tables.items() %}
+    <div class="section-header">
+      {{ group }}
+    </div>
+    <div class="chart-container">
+      {{ charts[group]|safe }}
+    </div>
+    <div class="table-modern mb-4">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Name</th>
+            <th class="text-end">Last Close</th>
+            <th class="text-end">% Change</th>
+            <th class="text-center">Trend</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><span class="badge bg-secondary">{{ row.ticker }}</span></td>
+            <td class="fw-medium">{{ row.name }}</td>
+            <td class="text-end fw-bold">${{ "%.2f"|format(row.last) }}</td>
+            <td class="text-end">
+              <span class="{% if row.change > 0 %}positive{% elif row.change < 0 %}negative{% else %}neutral{% endif %}">
+                {% if row.change > 0 %}+{% endif %}{{ "%.2f"|format(row.change) }}%
+              </span>
+            </td>
+            <td style="width: 100px;">{{ row.spark|safe }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+    
+    <footer class="text-center mt-5 py-3 text-muted">
+      <small>© 2024 Market Tracker | Data provided by Yahoo Finance</small>
+    </footer>
+  </div>
 </div>
 </body>
 </html>
