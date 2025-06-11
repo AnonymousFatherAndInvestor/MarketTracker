@@ -56,6 +56,47 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+    .table-modern th.sortable {
+      user-select: none !important;
+      transition: background-color 0.2s ease !important;
+      color: white !important;
+      background-color: #495057 !important;
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      text-decoration: none !important;
+      -webkit-tap-highlight-color: transparent !important;
+    }
+    .table-modern th.sortable:hover {
+      background-color: #5a6268 !important;
+      color: white !important;
+      border: none !important;
+      outline: none !important;
+    }
+    .table-modern th.sortable:active, 
+    .table-modern th.sortable:focus, 
+    .table-modern th.sortable:visited {
+      background-color: #495057 !important;
+      color: white !important;
+      outline: none !important;
+      box-shadow: none !important;
+      border: none !important;
+      text-decoration: none !important;
+    }
+    .table-modern th.sortable.active-sort {
+      background-color: #5a6268 !important;
+      color: white !important;
+      border: none !important;
+      outline: none !important;
+    }
+    .sort-indicator {
+      margin-left: 0.5rem;
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+    }
+    .sortable:hover .sort-indicator {
+      opacity: 1;
+    }
   </style>
 </head>
 <body class="bg-light">
@@ -118,7 +159,12 @@
             <th>Ticker</th>
             <th>Name</th>
             <th class="text-end">Last Close</th>
-            <th class="text-end">% Change</th>
+            <th class="text-end sortable" style="cursor: pointer;">
+              % Change
+              <span class="sort-indicator">
+                <small>⇅</small>
+              </span>
+            </th>
             <th class="text-center">Trend</th>
           </tr>
         </thead>
@@ -128,7 +174,7 @@
             <td><span class="badge bg-secondary">{{ row.ticker }}</span></td>
             <td class="fw-medium">{{ row.name }}</td>
             <td class="text-end fw-bold">${{ "%.2f"|format(row.last) }}</td>
-            <td class="text-end">
+            <td class="text-end" data-sort-value="{{ row.change }}">
               <span class="{% if row.change > 0 %}positive{% elif row.change < 0 %}negative{% else %}neutral{% endif %}">
                 {% if row.change > 0 %}+{% endif %}{{ "%.2f"|format(row.change) }}%
               </span>
@@ -146,5 +192,74 @@
     </footer>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 各テーブルのソート機能を初期化
+    document.querySelectorAll('.table').forEach(function(table) {
+        const sortableHeaders = table.querySelectorAll('.sortable');
+        
+        sortableHeaders.forEach(function(header) {
+            let currentSort = 'none'; // none, asc, desc
+            
+            header.addEventListener('click', function() {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                // ソート順を切り替え
+                if (currentSort === 'none' || currentSort === 'desc') {
+                    currentSort = 'asc';
+                } else {
+                    currentSort = 'desc';
+                }
+                
+                // 行をソート
+                rows.sort(function(a, b) {
+                    const aCell = a.querySelector('td[data-sort-value]');
+                    const bCell = b.querySelector('td[data-sort-value]');
+                    
+                    if (!aCell || !bCell) return 0;
+                    
+                    const aValue = parseFloat(aCell.getAttribute('data-sort-value'));
+                    const bValue = parseFloat(bCell.getAttribute('data-sort-value'));
+                    
+                    if (isNaN(aValue) || isNaN(bValue)) return 0;
+                    
+                    if (currentSort === 'asc') {
+                        return aValue - bValue;
+                    } else {
+                        return bValue - aValue;
+                    }
+                });
+                
+                // ソートした行をテーブルに再挿入
+                rows.forEach(function(row) {
+                    tbody.appendChild(row);
+                });
+                
+                // 他のソート可能ヘッダーからアクティブクラスを削除
+                table.querySelectorAll('.sortable').forEach(function(h) {
+                    h.classList.remove('active-sort');
+                    const indicator = h.querySelector('.sort-indicator small');
+                    if (indicator) {
+                        indicator.textContent = '⇅';
+                    }
+                });
+                
+                // 現在のヘッダーにアクティブクラスを追加
+                this.classList.add('active-sort');
+                const indicator = this.querySelector('.sort-indicator small');
+                if (indicator) {
+                    if (currentSort === 'asc') {
+                        indicator.textContent = '↑';
+                    } else {
+                        indicator.textContent = '↓';
+                    }
+                }
+            });
+        });
+    });
+});
+</script>
 </body>
 </html>
